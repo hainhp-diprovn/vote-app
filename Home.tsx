@@ -264,7 +264,19 @@ const Card: React.FC<{
                         textAlign: "center"
                     }}
                 >
-                    {item.name}
+                    {item.name + ` (${item.kind})`}
+                </Text>
+                <Text
+                    style={{
+                        color: "gray",
+                        fontSize: 17,
+                        fontStyle: "italic",
+                        fontWeight: "500",
+                        textAlign: "center",
+                        marginBottom: 10,
+                    }}
+                >
+                    {item.performer}
                 </Text>
                 {isVoted && isChecked &&
                     <Image
@@ -304,6 +316,8 @@ interface Repertoire {
     name: string;
     description: string;
     image: string;
+    performer: string;
+    kind: string;
 }
 
 interface VoteRepertoire {
