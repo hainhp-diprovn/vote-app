@@ -44,7 +44,7 @@ export default function HomeScreen() {
                     }, {})
                     return object
                 })
-                setRoutes(list)
+                setRoutes(list.slice(1))
 
                 const scoreReponseJS = await fetch("https://sheets.googleapis.com/v4/spreadsheets/15PVp4b-CzYKin168fLgUXoUxG88FufMhDFVRCjrcIuo/values/score?dateTimeRenderOption=FORMATTED_STRING&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE&key=AIzaSyCJMBXoGgagLBy8OZR4NnhGBs8R2T7e_tw")
                     .then((response) => response.json());
@@ -124,7 +124,7 @@ export default function HomeScreen() {
                 fontWeight: "bold",
             }}
         >
-            Submit my choice
+            Submit your choice
         </Text>
         {showToast &&
             <Toast
