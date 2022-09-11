@@ -7,6 +7,8 @@ import Animated, { Extrapolate, interpolate, useAnimatedStyle } from "react-nati
 import Carousel from "react-native-reanimated-carousel";
 import { withAnchorPoint } from "./anchor-point";
 import { ic_check, ic_list, ic_menu } from "./src/asset";
+import Toast from 'react-native-root-toast';
+
 
 const screenSize = Dimensions.get('window');
 const PAGE_WIDTH = screenSize.width / 1.8;
@@ -19,8 +21,18 @@ export default function HomeScreen() {
     const [routes, setRoutes] = useState<Repertoire[]>([]);
     const [listSelected, setListSelected] = useState<Repertoire[]>([]);
     const [votedList, setVotedList] = useState<VoteRepertoire[]>([]);
+    const [showToast, setShowToast] = useState<boolean>(false);
 
     const isVoted = votedList.length != 0;
+
+    useEffect(() => {
+        if (!showToast) return
+        const timer = setTimeout(() => {
+            setShowToast(false)
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, [showToast])
+
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -69,7 +81,6 @@ export default function HomeScreen() {
                 width: screenSize.width,
                 justifyContent: 'center',
                 alignItems: 'center',
-                // marginTop: 50,
             }}
             onSnapToItem={(index) => console.log('current index:', index)}
             renderItem={({ item, index, animationValue }) => (
@@ -84,10 +95,14 @@ export default function HomeScreen() {
                     }
                     isVoted={isVoted}
                     onCheckPress={(item) => {
-                        if (listSelected.findIndex((e) => e.id == item.id) != -1) {
-                            setListSelected(listSelected.filter((e) => e.id != item.id))
+                        if (listSelected.findIndex((e) => e.id == item.id) == -1) {
+                            if (listSelected.length > 1) {
+                                setShowToast(true)
+                            } else {
+                                setListSelected([...listSelected, item])
+                            }
                         } else {
-                            setListSelected([...listSelected, item])
+                            setListSelected(listSelected.filter((e) => e.id != item.id))
                         }
                     }}
                 />
@@ -111,6 +126,16 @@ export default function HomeScreen() {
         >
             Submit my choice
         </Text>
+        {showToast &&
+            <Toast
+                visible={true}
+                shadow={false}
+                animation={false}
+                hideOnPress={true}
+            >
+                You can only vote for 2 performance!!
+            </Toast>
+        }
     </View>
 }
 
