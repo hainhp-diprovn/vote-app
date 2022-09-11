@@ -6,7 +6,7 @@ import Animated, { Extrapolate, interpolate, useAnimatedStyle } from "react-nati
 
 import Carousel from "react-native-reanimated-carousel";
 import { withAnchorPoint } from "./anchor-point";
-import { ic_list, ic_menu } from "./src/asset";
+import { ic_check, ic_list, ic_menu } from "./src/asset";
 
 const screenSize = Dimensions.get('window');
 const PAGE_WIDTH = screenSize.width / 1.8;
@@ -17,9 +17,10 @@ const colors = ['#fda282', '#fdba4e', '#800015'];
 export default function HomeScreen() {
 
     const [routes, setRoutes] = useState<Repertoire[]>([]);
-    const [indexSelected, setIndexSelected] = useState<number>(0);
-    const [isListMode, setIsListMode] = useState<boolean>(false);
+    const [listSelected, setListSelected] = useState<Repertoire[]>([]);
+    const [votedList, setVotedList] = useState<VoteRepertoire[]>([]);
 
+    const isVoted = votedList.length != 0;
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -31,9 +32,7 @@ export default function HomeScreen() {
                     }, {})
                     return object
                 })
-                console.log(list)
                 setRoutes(list)
-
 
                 const scoreReponseJS = await fetch("https://sheets.googleapis.com/v4/spreadsheets/15PVp4b-CzYKin168fLgUXoUxG88FufMhDFVRCjrcIuo/values/score?dateTimeRenderOption=FORMATTED_STRING&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE&key=AIzaSyCJMBXoGgagLBy8OZR4NnhGBs8R2T7e_tw")
                     .then((response) => response.json());
@@ -43,11 +42,10 @@ export default function HomeScreen() {
                     }, {})
                     return object
                 })
-                console.log(scores)
 
                 const listscores = scores as VoteRepertoire[]
-                const isVoted = listscores.filter((e) => e.user_id == "10").length != 0
-                console.log("isVoted", isVoted)
+                const voted = listscores.filter((e) => e.user_id == "10")
+                setVotedList(voted)
             } catch (exception) {
                 console.error(exception);
             }
@@ -69,10 +67,9 @@ export default function HomeScreen() {
             scrollAnimationDuration={1000}
             style={{
                 width: screenSize.width,
-                height: PAGE_HEIGHT,
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginTop: -20
+                // marginTop: 50,
             }}
             onSnapToItem={(index) => console.log('current index:', index)}
             renderItem={({ item, index, animationValue }) => (
@@ -81,43 +78,38 @@ export default function HomeScreen() {
                     animationValue={animationValue}
                     key={index}
                     index={index}
+                    isChecked={
+                        listSelected.filter((e) => e.id == item.id).length != 0 ||
+                        votedList.filter((e) => e.repertoire_id_1 == item.id || e.repertoire_id_2 == item.id).length != 0
+                    }
+                    isVoted={isVoted}
+                    onCheckPress={(item) => {
+                        if (listSelected.findIndex((e) => e.id == item.id) != -1) {
+                            setListSelected(listSelected.filter((e) => e.id != item.id))
+                        } else {
+                            setListSelected([...listSelected, item])
+                        }
+                    }}
                 />
             )}
         />
+
         <Text
             style={{
-                fontSize: 30,
-                marginHorizontal: 10,
-                marginTop: -40
-            }}
-        >
-            {routes[indexSelected]?.name ?? ""}
-        </Text>
-        <Text
-            style={{
-                fontSize: 15,
-                marginTop: 10,
-                marginHorizontal: 10,
-                color: "gray"
-            }}
-        >
-            {routes[indexSelected]?.description ?? ""}
-        </Text>
-        <Text
-            style={{
-                fontSize: 20,
+                fontSize: 24,
                 position: "absolute",
                 bottom: 20,
                 left: 20,
                 right: 20,
-                backgroundColor: "red",
+                backgroundColor: isVoted ? "gray" : "#33B0D0",
                 textAlign: "center",
                 padding: 10,
                 color: "white",
                 borderRadius: 10,
+                fontWeight: "bold",
             }}
         >
-            Vote for title
+            Submit my choice
         </Text>
     </View>
 }
@@ -126,7 +118,10 @@ const Card: React.FC<{
     item: Repertoire,
     index: number;
     animationValue: Animated.SharedValue<number>;
-}> = ({ item, index, animationValue }) => {
+    isVoted: boolean;
+    isChecked: boolean;
+    onCheckPress: (item: Repertoire) => void;
+}> = ({ item, index, animationValue, isVoted, isChecked, onCheckPress }) => {
     const WIDTH = PAGE_WIDTH;
     const HEIGHT = PAGE_HEIGHT / 1.5;
 
@@ -201,21 +196,17 @@ const Card: React.FC<{
         <Animated.View
             style={{
                 flex: 1,
-                justifyContent: 'center',
-                alignItems: 'center',
+                paddingTop: 30,
             }}
         >
             <Animated.View
                 style={[
                     {
-                        backgroundColor: colors[index],
-                        alignSelf: 'center',
-                        justifyContent: 'center',
-                        alignItems: 'center',
+                        backgroundColor: "white",
                         borderRadius: 20,
                         width: WIDTH,
                         height: HEIGHT,
-                        shadowColor: '#000',
+                        shadowColor: '#33B0D0',
                         shadowOffset: {
                             width: 0,
                             height: 8,
@@ -231,19 +222,55 @@ const Card: React.FC<{
                     source={{ uri: item.image }}
                     style={[
                         {
-                            width: WIDTH * 0.86,
-                            height: "90%",
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            position: 'absolute',
-                            zIndex: 999,
+                            width: WIDTH,
+                            height: "100%",
+                            borderRadius: 20,
                         },
                     ]}
                     resizeMode={'cover'}
                 />
-
+                <Text
+                    style={{
+                        color: "black",
+                        fontWeight: "bold",
+                        fontSize: 20,
+                        margin: 6,
+                        padding: 6,
+                        textAlign: "center"
+                    }}
+                >
+                    {item.name}
+                </Text>
+                {isVoted && isChecked &&
+                    <Image
+                        source={ic_check}
+                        style={{
+                            alignSelf: "center",
+                            width: 30,
+                            height: 30,
+                        }} />
+                }
+                {!isVoted && <TouchableOpacity
+                    style={{
+                        alignSelf: "center",
+                        borderColor: "#28648D",
+                        borderWidth: 1,
+                        padding: 4,
+                        width: 30,
+                        height: 30,
+                    }}
+                    onPress={() => onCheckPress(item)}
+                >
+                    {isChecked && <Image
+                        source={ic_check}
+                        style={{
+                            alignSelf: "center",
+                            width: 30,
+                            height: 30,
+                        }} />}
+                </TouchableOpacity>}
             </Animated.View>
-        </Animated.View>
+        </Animated.View >
     );
 };
 
