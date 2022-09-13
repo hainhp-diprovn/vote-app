@@ -1,14 +1,14 @@
 import React from "react";
 import { useCallback, useEffect, useState } from 'react';
-import { Dimensions, Text, View, Image, Button } from 'react-native';
+import { Dimensions, Text, View, Image, Button, ActivityIndicator } from 'react-native';
 import { TouchableOpacity } from "react-native-gesture-handler";
 import Animated, { Extrapolate, interpolate, useAnimatedStyle } from "react-native-reanimated";
 
 import Carousel from "react-native-reanimated-carousel";
 import { withAnchorPoint } from "./anchor-point";
-import { ic_check, ic_list, ic_menu } from "./src/asset";
+import { ic_check, ic_list, ic_menu, img_logo_2 } from "./src/asset";
 import Toast from 'react-native-root-toast';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const screenSize = Dimensions.get('window');
 const PAGE_WIDTH = screenSize.width / 1.8;
@@ -16,12 +16,20 @@ const PAGE_HEIGHT = Math.min(screenSize.width * 1.2, screenSize.height * 0.5);
 
 const colors = ['#fda282', '#fdba4e', '#800015'];
 
+const sheets = [
+    "https://sheet.best/api/sheets/2efea45e-eaa3-4dbb-835b-b8f6ebbe1373/tabs/score", // hai
+    "https://sheet.best/api/sheets/0c9a8f71-d975-462a-a0b5-276c9e7882ab/tabs/score", // hien
+]
+
 export default function HomeScreen() {
 
     const [routes, setRoutes] = useState<Repertoire[]>([]);
     const [listSelected, setListSelected] = useState<Repertoire[]>([]);
     const [votedList, setVotedList] = useState<VoteRepertoire[]>([]);
     const [showToast, setShowToast] = useState<boolean>(false);
+    const [userLoggin, setUserLoggin] = useState<any>();
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [indexSheetUsing, setIndexSheetUsing] = useState<number>(0);
 
     const isVoted = votedList.length != 0;
 
@@ -34,46 +42,106 @@ export default function HomeScreen() {
     }, [showToast])
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const responseJS = await fetch("https://sheets.googleapis.com/v4/spreadsheets/15PVp4b-CzYKin168fLgUXoUxG88FufMhDFVRCjrcIuo/values/repertoire?dateTimeRenderOption=FORMATTED_STRING&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE&key=AIzaSyCJMBXoGgagLBy8OZR4NnhGBs8R2T7e_tw")
-                    .then((response) => response.json());
-                const list = responseJS.values.map((e: any) => {
-                    const object = e.reduce((previousValue: any, currentValue: any, currentIndex: number) => {
-                        return { ...previousValue, [responseJS.values[0][currentIndex]]: currentValue }
-                    }, {})
-                    return object
-                })
-                setRoutes(list.slice(1))
-
-                const scoreReponseJS = await fetch("https://sheets.googleapis.com/v4/spreadsheets/15PVp4b-CzYKin168fLgUXoUxG88FufMhDFVRCjrcIuo/values/score?dateTimeRenderOption=FORMATTED_STRING&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE&key=AIzaSyCJMBXoGgagLBy8OZR4NnhGBs8R2T7e_tw")
-                    .then((response) => response.json());
-                const scores = scoreReponseJS.values.map((e: any) => {
-                    const object = e.reduce((previousValue: any, currentValue: any, currentIndex: number) => {
-                        return { ...previousValue, [scoreReponseJS.values[0][currentIndex]]: currentValue }
-                    }, {})
-                    return object
-                })
-
-                const listscores = scores as VoteRepertoire[]
-                const voted = listscores.filter((e) => e.user_id == "10")
-                setVotedList(voted)
-            } catch (exception) {
-                console.error(exception);
-            }
-        }
-
         fetchData()
     }, [])
+
+    const fetchData = async () => {
+        try {
+            const responseJS = await fetch("https://sheets.googleapis.com/v4/spreadsheets/15PVp4b-CzYKin168fLgUXoUxG88FufMhDFVRCjrcIuo/values/repertoire?dateTimeRenderOption=FORMATTED_STRING&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE&key=AIzaSyCJMBXoGgagLBy8OZR4NnhGBs8R2T7e_tw")
+                .then((response) => response.json());
+            const list = responseJS.values.map((e: any) => {
+                const object = e.reduce((previousValue: any, currentValue: any, currentIndex: number) => {
+                    return { ...previousValue, [responseJS.values[0][currentIndex]]: currentValue }
+                }, {})
+                return object
+            })
+            setRoutes(list.slice(1))
+
+            const scoreReponseJS = await fetch("https://sheets.googleapis.com/v4/spreadsheets/15PVp4b-CzYKin168fLgUXoUxG88FufMhDFVRCjrcIuo/values/score?dateTimeRenderOption=FORMATTED_STRING&majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE&key=AIzaSyCJMBXoGgagLBy8OZR4NnhGBs8R2T7e_tw")
+                .then((response) => response.json());
+            const scores = scoreReponseJS.values.map((e: any) => {
+                const object = e.reduce((previousValue: any, currentValue: any, currentIndex: number) => {
+                    return { ...previousValue, [scoreReponseJS.values[0][currentIndex]]: currentValue }
+                }, {})
+                return object
+            })
+
+            const user = await getSession()
+            setUserLoggin(user)
+
+            const listscores = scores as VoteRepertoire[]
+            const voted = listscores.filter((e) => e.user_id == user.name)
+            setVotedList(voted)
+        } catch (exception) {
+            console.error(exception);
+        }
+    }
+
+    const getSession = async () => {
+        try {
+            const jsonValue = await AsyncStorage.getItem('@storage_Key')
+            return jsonValue != null ? JSON.parse(jsonValue) : null;
+        } catch (e) {
+            console.error(e)
+        }
+    }
+
+    const handleSubmitVote = async () => {
+        if (isLoading) return
+        if (listSelected.length != 2) {
+            setShowToast(true)
+            return
+        }
+        const data = {
+            user_id: userLoggin.name,
+            repertoire_id_1: listSelected[0].id,
+            repertoire_id_2: listSelected[1].id
+        };
+        setIsLoading(true)
+        const path = sheets[indexSheetUsing]
+        try {
+            await fetch(path, {
+                method: "POST",
+                mode: "cors",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+            })
+        } catch (e) {
+            setIndexSheetUsing(indexSheetUsing + 1 >= sheets.length ? 0 : indexSheetUsing + 1)
+        }
+        await fetchData()
+        setIsLoading(false)
+    }
+
 
     return <View
         style={{
             flex: 1,
             alignItems: "center",
-            backgroundColor: "white"
+            backgroundColor: "white",
         }}>
+        <View style={{
+            width: "100%",
+            height: 50,
+            backgroundColor: "white",
+            alignItems: "center",
+            flexDirection: "row",
+            borderBottomWidth: 0.5,
+            borderBottomColor: "#33B0D0"
+        }}>
+            <Image
+                resizeMode="contain"
+                source={img_logo_2}
+                style={{ width: 30, aspectRatio: 1, position: "absolute", left: 16 }}
+            />
+            <Text style={{ textAlign: "center", flex: 1, fontSize: 20, fontWeight: "bold", color: "#33B0D0" }}>
+                <Text style={{ color: "#28648D" }}>Vote</Text> Performance
+            </Text>
+        </View>
         <Carousel
-            loop
+            loop={false}
             width={PAGE_WIDTH}
             data={routes}
             scrollAnimationDuration={1000}
@@ -81,6 +149,7 @@ export default function HomeScreen() {
                 width: screenSize.width,
                 justifyContent: 'center',
                 alignItems: 'center',
+                flex: 1,
             }}
             onSnapToItem={(index) => console.log('current index:', index)}
             renderItem={({ item, index, animationValue }) => (
@@ -108,24 +177,40 @@ export default function HomeScreen() {
                 />
             )}
         />
-
-        <Text
+        <TouchableOpacity
+            disabled={isLoading}
+            onPress={handleSubmitVote}
             style={{
-                fontSize: 24,
-                position: "absolute",
-                bottom: 20,
-                left: 20,
-                right: 20,
-                backgroundColor: isVoted ? "gray" : "#33B0D0",
-                textAlign: "center",
-                padding: 10,
-                color: "white",
+                bottom: 70,
+                backgroundColor: isVoted ? "white" : "#28648D",
+                borderColor: "#28648D",
+                borderWidth: 0.6,
+                paddingHorizontal: 30,
+                paddingVertical: 12,
                 borderRadius: 10,
-                fontWeight: "bold",
+                flexDirection: "row",
+                minWidth: 200,
+                justifyContent: "center"
             }}
         >
-            Submit your choice
-        </Text>
+            {isLoading &&
+                <ActivityIndicator
+                    size="small"
+                    color={"white"}
+                    style={{ marginRight: 10 }}
+                />
+            }
+            <Text
+                style={{
+                    fontSize: 18,
+                    textAlign: "center",
+                    color: isVoted ? "#28648D" : "white",
+                    fontWeight: "bold",
+                }}
+            >
+                {isVoted ? "Voted" : "Submit your choice"}
+            </Text>
+        </TouchableOpacity>
         {showToast &&
             <Toast
                 visible={true}
@@ -133,7 +218,7 @@ export default function HomeScreen() {
                 animation={false}
                 hideOnPress={true}
             >
-                You can only vote for 2 performance!!
+                {listSelected.length == 1 ? "You need vote 2" : "You can only vote for 2 performance!!"}
             </Toast>
         }
     </View>
@@ -221,13 +306,15 @@ const Card: React.FC<{
         <Animated.View
             style={{
                 flex: 1,
-                paddingTop: 30,
+                alignItems: "center",
+                justifyContent: "center",
+                maxHeight: "50%"
             }}
         >
             <Animated.View
                 style={[
                     {
-                        backgroundColor: "white",
+                        backgroundColor: "red",
                         borderRadius: 20,
                         width: WIDTH,
                         height: HEIGHT,
@@ -256,7 +343,7 @@ const Card: React.FC<{
                 />
                 <Text
                     style={{
-                        color: "black",
+                        color: "#28648D",
                         fontWeight: "bold",
                         fontSize: 20,
                         margin: 6,
@@ -264,7 +351,7 @@ const Card: React.FC<{
                         textAlign: "center"
                     }}
                 >
-                    {item.name + ` (${item.kind})`}
+                    {item.name + `\n (${item.kind})`}
                 </Text>
                 <Text
                     style={{
