@@ -178,7 +178,7 @@ export default function HomeScreen() {
             )}
         />
         <TouchableOpacity
-            disabled={isLoading}
+            disabled={isLoading || isVoted}
             onPress={handleSubmitVote}
             style={{
                 bottom: 70,
