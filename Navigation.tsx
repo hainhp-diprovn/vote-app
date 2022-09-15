@@ -14,21 +14,29 @@ export default function HomeStackNavigation() {
     useEffect(() => {
         getData()
     })
+
     const getData = async () => {
         try {
-            const value = await AsyncStorage.getItem('@storage_Key');
-            setHasLogin(value !== null);
+            const item = await AsyncStorage.getItem('@storage_Key')
+            if (item) {
+                const jsonValue = JSON.parse(item)
+                setHasLogin(jsonValue.name !== null);
+            }
         } catch (e) {
             console.error(e)
         }
     }
 
+    const HomeItemScreen = () => {
+        return <HomeScreen setHasLogin={setHasLogin} />
+    }
+
     if (hasLogin) {
-        return <HomeScreen />
+        return <HomeItemScreen />
     }
 
     return (
-        <Stack.Navigator>
+        <Stack.Navigator initialRouteName="login">
             <Stack.Screen
                 name='login'
                 component={LoginScreen}
@@ -36,7 +44,7 @@ export default function HomeStackNavigation() {
             />
             <Stack.Screen
                 name="home"
-                component={HomeScreen}
+                component={HomeItemScreen}
                 options={{ headerShown: false }}
             />
         </Stack.Navigator>

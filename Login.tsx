@@ -54,7 +54,6 @@ export default function LoginScreen() {
     const handleOnLogin = async () => {
         if (users.filter((e) => e.name == id).length != 0) {
             await storeData(users.filter((e) => e.name == id)[0]);
-
             navigation.navigate("home");
         } else {
             setShowToastLoginIncorrect(true)

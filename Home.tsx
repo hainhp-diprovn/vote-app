@@ -6,9 +6,10 @@ import Animated, { Extrapolate, interpolate, useAnimatedStyle } from "react-nati
 
 import Carousel from "react-native-reanimated-carousel";
 import { withAnchorPoint } from "./anchor-point";
-import { ic_check, ic_list, ic_menu, img_logo_2 } from "./src/asset";
+import { ic_check, ic_list, ic_logout, ic_menu, img_logo_2 } from "./src/asset";
 import Toast from 'react-native-root-toast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation } from "@react-navigation/native";
 
 const screenSize = Dimensions.get('window');
 const PAGE_WIDTH = screenSize.width / 1.8;
@@ -21,7 +22,8 @@ const sheets = [
     "https://sheet.best/api/sheets/0c9a8f71-d975-462a-a0b5-276c9e7882ab/tabs/score", // hien
 ]
 
-export default function HomeScreen() {
+export default function HomeScreen({ setHasLogin }) {
+    const navigation = useNavigation();
 
     const [routes, setRoutes] = useState<Repertoire[]>([]);
     const [listSelected, setListSelected] = useState<Repertoire[]>([]);
@@ -32,6 +34,20 @@ export default function HomeScreen() {
     const [indexSheetUsing, setIndexSheetUsing] = useState<number>(0);
 
     const isVoted = votedList.length != 0;
+
+    const removeData = async () => {
+        try {
+            await AsyncStorage.removeItem('@storage_Key')
+        } catch (e) {
+            console.error(e)
+        }
+    }
+
+    const handleLogout = async () => {
+        await removeData();
+        setHasLogin(false);
+        navigation.navigate("login");
+    }
 
     useEffect(() => {
         if (!showToast) return
@@ -139,6 +155,15 @@ export default function HomeScreen() {
             <Text style={{ textAlign: "center", flex: 1, fontSize: 20, fontWeight: "bold", color: "#33B0D0" }}>
                 <Text style={{ color: "#28648D" }}>Vote</Text> Performance
             </Text>
+            <TouchableOpacity
+                style={{ right: 16, }}
+                onPress={handleLogout}>
+                <Image
+                    resizeMode="contain"
+                    source={ic_logout}
+                    style={{ width: 24, aspectRatio: 1 }}
+                />
+            </TouchableOpacity>
         </View>
         <Carousel
             loop={false}
@@ -177,40 +202,42 @@ export default function HomeScreen() {
                 />
             )}
         />
-        <TouchableOpacity
-            disabled={isLoading || isVoted}
-            onPress={handleSubmitVote}
-            style={{
-                bottom: 70,
-                backgroundColor: isVoted ? "white" : "#28648D",
-                borderColor: "#28648D",
-                borderWidth: 0.6,
-                paddingHorizontal: 30,
-                paddingVertical: 12,
-                borderRadius: 10,
-                flexDirection: "row",
-                minWidth: 200,
-                justifyContent: "center"
-            }}
-        >
-            {isLoading &&
-                <ActivityIndicator
-                    size="small"
-                    color={"white"}
-                    style={{ marginRight: 10 }}
-                />
-            }
-            <Text
+        {userLoggin != null &&
+            <TouchableOpacity
+                disabled={isLoading || isVoted}
+                onPress={handleSubmitVote}
                 style={{
-                    fontSize: 18,
-                    textAlign: "center",
-                    color: isVoted ? "#28648D" : "white",
-                    fontWeight: "bold",
+                    bottom: 70,
+                    backgroundColor: isVoted ? "white" : "#28648D",
+                    borderColor: "#28648D",
+                    borderWidth: 0.6,
+                    paddingHorizontal: 30,
+                    paddingVertical: 12,
+                    borderRadius: 10,
+                    flexDirection: "row",
+                    minWidth: 200,
+                    justifyContent: "center"
                 }}
             >
-                {isVoted ? "Voted" : "Submit your choice"}
-            </Text>
-        </TouchableOpacity>
+                {isLoading &&
+                    <ActivityIndicator
+                        size="small"
+                        color={"white"}
+                        style={{ marginRight: 10 }}
+                    />
+                }
+                <Text
+                    style={{
+                        fontSize: 18,
+                        textAlign: "center",
+                        color: isVoted ? "#28648D" : "white",
+                        fontWeight: "bold",
+                    }}
+                >
+                    {isVoted ? "Voted" : "Submit your choice"}
+                </Text>
+            </TouchableOpacity>
+        }
         {showToast &&
             <Toast
                 visible={true}
@@ -314,7 +341,6 @@ const Card: React.FC<{
             <Animated.View
                 style={[
                     {
-                        backgroundColor: "red",
                         borderRadius: 20,
                         width: WIDTH,
                         height: HEIGHT,
@@ -410,7 +436,6 @@ interface Repertoire {
 interface VoteRepertoire {
     no: string;
     user_id: string;
-    user_name: string;
     repertoire_id_1: string;
     repertoire_id_2: string;
 }
